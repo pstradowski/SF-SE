@@ -1,0 +1,81 @@
+---
+title: 'Drug markets: San Francisco vs Seattle'
+author: "Paweł Stradowski"
+date: "22 January 2016"
+output: html_document
+---
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
+Sys.setlocale("LC_MESSAGES", "en_US.utf8")
+Sys.setlocale("LC_ALL", "en_US.utf8")
+library(magrittr)
+library(ggmap)
+library(dplyr)
+library(lubridate)
+library(leaflet)
+
+sf_inc <- read.csv("sanfrancisco_incidents_summer_2014.csv.gz")
+sf_inc %<>% mutate(timestamp=mdy_hm(paste(Date, Time)))
+se_inc <- read.csv("seattle_incidents_summer_2014.csv.gz")
+se_inc %<>% mutate(timestamp=mdy_hms(Occurred.Date.or.Date.Range.Start))
+
+sf_pop=852469	
+se_pop=668342
+```
+
+In this analysis, I focus on narcotic sales crimes, therefore I need to filter the crime records, which are related drug sales.
+For San Francisco, I did this by choosing category DRUG/NARCOTIC which contains word "SALE" in the Descript column
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+narco_sf <- sf_inc %>% 
+  filter(Category=='DRUG/NARCOTIC', grepl("SALE", Descript))
+narco_sf %>% select(Descript) %>%
+  distinct() %>%
+  arrange()
+```
+In case of Seattle, I choose records, which contain "NARC-SELL" in the *Offense.Type* field, here comes the list:
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+narco_se <- se_inc %>% filter(grepl("NARC-SELL", Offense.Type), Latitude!=0) 
+narco_se %>% select(Offense.Type) %>% distinct()
+```
+In order to explore both market, one can use interactive maps below:
+Seattle
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+leaflet(data=narco_se) %>% addTiles() %>%
+  addMarkers(~Longitude, ~Latitude, popup=~as.character(Offense.Type))
+```
+San Francisco
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+leaflet(data=narco_sf) %>% addTiles() %>%
+  addMarkers(~X, ~Y, popup=~as.character(Descript))
+```
+Above maps present the individual crime incidents, but in order to have better view, one can use density estimation to find potential centers. Seattle has two drug sales centers in the downtown located not far away from each other
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+se_map <- ggmap(get_map("Seattle", zoom=13))
+se_map + stat_density2d(
+        aes(x = Longitude, y = Latitude, fill = ..level..), alpha=0.2,
+        size = 0.01,  data = narco_se,
+        geom = "polygon") + scale_fill_continuous(low="orange", high="red", limits=c(0,10000))
+```
+San Francisco is different - there is one big drug trade center in the downtown.
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+sf_map <- ggmap(get_map("San Francisco", zoom=13))
+sf_map + stat_density2d(
+        aes(x = X, y = Y, fill = ..level.., alpha=..level..), alpha=0.2,
+        size = 0.01,  data = narco_sf,
+        geom = "polygon") + scale_fill_continuous(low="orange", high="red", limits=c(0,10000))
+```
+It would be also interesting to have a look at narco crime incidents per capita
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+data.frame(narco_per_capita=c(nrow(narco_se)/se_pop, nrow(narco_sf)/sf_pop), City=c("Seattle", "San Francisco")) %>% ggplot(aes(x=City, y=narco_per_capita, fill=City)) +geom_bar(stat="identity")
+```
+One can observe, that San Franciso is much bigger market for drugs when comparing incidents per capita. This could be caused however by the methodology used, so additional study should be done to confirm this finding.
+I tried to look at hourly distribution of crimes related to drug sales, however Seattle data contains empty space between 01:00 and 10:00 - this could be caused by the way the data is recorded.
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+narco_se %>% ggplot(aes(x=hour(timestamp))) + geom_bar(stat="count", fill="blue") +
+  ggtitle("Seattle narcotic crimes hourly distribution")+
+  xlab("Hour")+ scale_x_discrete(0:24)
+narco_sf %>% ggplot(aes(x=hour(timestamp))) + geom_bar(stat="count", fill="darkgreen")+
+  ggtitle("San Francisco narcotic crimes hourly distribution")+
+  xlab("Hour") + scale_x_discrete(0:24)
+```
