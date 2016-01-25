@@ -8,11 +8,18 @@ output: html_document
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, include=FALSE}
 Sys.setlocale("LC_MESSAGES", "en_US.utf8")
 Sys.setlocale("LC_ALL", "en_US.utf8")
-library(magrittr)
-library(ggmap)
-library(dplyr)
-library(lubridate)
-library(leaflet)
+
+usePackage <- function(p) {
+    if (!is.element(p, installed.packages()[,1]))
+        install.packages(p, dep = TRUE)
+    require(p, character.only = TRUE)
+}
+
+usePackage("magrittr")
+usePackage("ggmap")
+usePackage("dplyr")
+usePackage("lubridate")
+usePackage("leaflet")
 
 sf_inc <- read.csv("sanfrancisco_incidents_summer_2014.csv.gz")
 sf_inc %<>% mutate(timestamp=mdy_hm(paste(Date, Time)))
