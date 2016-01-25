@@ -1,5 +1,5 @@
 ---
-title: 'Drug markets: San Francisco vs Seattle'
+title: 'Communicating Datascience Results assignment: Drug markets in San Francisco and Seattle'
 author: "Paweł Stradowski"
 date: "22 January 2016"
 output: html_document
@@ -22,8 +22,13 @@ se_inc %<>% mutate(timestamp=mdy_hms(Occurred.Date.or.Date.Range.Start))
 sf_pop=852469	
 se_pop=668342
 ```
+# Introduction
+This is an assignment from Coursera course "Communicating Datascience Results"
+In this analysis, I focus on narcotic sales crimes in Seattle and San Francisco  
+Full code of this analysis can be found on Github (git clone  https://github.com/pstradowski/SF-SE.git ), feel free to reproduce it, any comments are welcome.
 
-In this analysis, I focus on narcotic sales crimes, therefore I need to filter the crime records, which are related drug sales.
+# Preparation
+In order to work with the same data, Ineed to filter the crime records, which are related drug sales.
 For San Francisco, I did this by choosing category DRUG/NARCOTIC which contains word "SALE" in the Descript column
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
@@ -38,7 +43,8 @@ In case of Seattle, I choose records, which contain "NARC-SELL" in the *Offense.
 narco_se <- se_inc %>% filter(grepl("NARC-SELL", Offense.Type), Latitude!=0) 
 narco_se %>% select(Offense.Type) %>% distinct()
 ```
-In order to explore both market, one can use interactive maps below:
+# Visualisations
+As first step, I suggest to use interactive maps of both cities with markers set in each place, where a criminal event occured. Browsing the maps with appropriate zoom gives an insight into spatial distribution of narcotics crimes in both cities.  
 Seattle
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 leaflet(data=narco_se) %>% addTiles() %>%
@@ -51,26 +57,31 @@ leaflet(data=narco_sf) %>% addTiles() %>%
 ```
 Above maps present the individual crime incidents, but in order to have better view, one can use density estimation to find potential centers. Seattle has two drug sales centers in the downtown located not far away from each other
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-se_map <- ggmap(get_map("Seattle", zoom=13))
+se_map <- ggmap(get_map(location=c(-122.3672, 47.59034, -122.3047, 47.6237), source="osm" ))
 se_map + stat_density2d(
         aes(x = Longitude, y = Latitude, fill = ..level..), alpha=0.2,
         size = 0.01,  data = narco_se,
         geom = "polygon") + scale_fill_continuous(low="orange", high="red", limits=c(0,10000))
 ```
-San Francisco is different - there is one big drug trade center in the downtown.
+  
+San Francisco is different - there are 3 centers, but one of them strongly dominates the rest. It could be related to the city organisation - the center is located in quarter full of bars and restaurants - place where people entertain is nattural target for drug dealers and depending on the city organisation, there could be more than one such quarter.
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-sf_map <- ggmap(get_map("San Francisco", zoom=13))
+sf_map <- ggmap(get_map(location=c(-122.4270, 37.75798, -122.3989, 37.79534), source="osm"))
 sf_map + stat_density2d(
         aes(x = X, y = Y, fill = ..level.., alpha=..level..), alpha=0.2,
         size = 0.01,  data = narco_sf,
         geom = "polygon") + scale_fill_continuous(low="orange", high="red", limits=c(0,10000))
 ```
-It would be also interesting to have a look at narco crime incidents per capita
+  
+One could notice that on above maps, the density of crimes is higher in San Francisco, it is related to pupulation density - in case of San Francisco, it is very big.  
+It would be also interesting to have a look at narco crime incidents per capita.
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 data.frame(narco_per_capita=c(nrow(narco_se)/se_pop, nrow(narco_sf)/sf_pop), City=c("Seattle", "San Francisco")) %>% ggplot(aes(x=City, y=narco_per_capita, fill=City)) +geom_bar(stat="identity")
 ```
-One can observe, that San Franciso is much bigger market for drugs when comparing incidents per capita. This could be caused however by the methodology used, so additional study should be done to confirm this finding.
-I tried to look at hourly distribution of crimes related to drug sales, however Seattle data contains empty space between 01:00 and 10:00 - this could be caused by the way the data is recorded.
+  
+One can observe, that San Franciso is much bigger market for drugs when comparing incidents per capita, looks like drugs are more popyular in San Francisco than in Seattle. This could be caused however by the methodology used, so additional study should be done to confirm this finding.  
+I tried to look at hourly distribution of crimes related to drug sales, however Seattle data contains empty space between 01:00 and 10:00 - this could be caused by the way the data is recorded.  
+Patterns are different for both cities - San Francisco distribution is more smooth than Seattle, however without full background on data acquisition, one can not find the real root cause of such differences. In general it seems that San Francisco has higher number of narcotic crimes, which happen in the evening.
 ```{r echo=FALSE, warning=FALSE, message=FALSE}
 narco_se %>% ggplot(aes(x=hour(timestamp))) + geom_bar(stat="count", fill="blue") +
   ggtitle("Seattle narcotic crimes hourly distribution")+
